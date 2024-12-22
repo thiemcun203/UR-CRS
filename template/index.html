@@ -1,0 +1,174 @@
+<!-- /template/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/static/style.css">
+
+	<!-- Add icon for title chatbot -->
+	 <link rel="icon" type="image/x-icon" href="/static/icon/istockphoto-1194258524-612x612.jpg">
+
+</head>
+<body>
+	<div id="header" style="display: flex;">
+		<a href="" class="logo-image" style="display: inline-flex; align-items: center; text-decoration: none; margin-left: 8%;">
+			<img src="/static/icon/istockphoto-1194258524-612x612.jpg" alt="" style="width: 48px; height: 48px;">
+			<h2 style="color: black;">Movie Chat</h2>
+		</a>
+	</div>
+
+    <div class="chatbot-container">
+        <div id="chatbot">
+            <div id="conversation">
+				<div class="conversation-message">
+					<div class="message chatbot-message">
+						<p class="chatbot-text">Hi! How can I help you?</p>
+					</div>
+				</div>
+            </div>
+
+            <form id="input-form">
+              <message-container>
+                <input id="input-field" type="text" placeholder="Start chatting...">
+				<!-- <textarea id="input-field" placeholder="Start chatting..."></textarea> -->
+                <button id="submit-button" type="submit">
+                  <img class="send-icon" src="/static/icon/send-message.png" alt="">
+                </button>
+              </message-container>
+            </form>
+        </div>  
+    </div>
+
+    <script>
+		// Function to convert Markdown-like syntax to HTML
+		function parseMarkdown(text) {
+			// Convert headings
+			text = text.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+			text = text.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+			text = text.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+			// Convert bold and italic text
+			text = text.replace(/\*\*\s?(.+?)\s?\*\*/gim, '<strong>$1</strong>');
+			text = text.replace(/\*\s?(.+?)\s?\*/gim, '<em>$1</em>');
+
+			// Convert line breaks
+			text = text.replace(/\n/gim, '<br>');
+
+			return text.trim(); // Remove any leading or trailing whitespace
+		}
+
+		// Get chatbot elements
+		const chatbot = document.getElementById('chatbot');
+		const conversation = document.getElementById('conversation');
+		const inputForm = document.getElementById('input-form');
+		const inputField = document.getElementById('input-field');
+
+		// Add event listener to input form
+		inputForm.addEventListener('submit', async function(event) {
+		event.preventDefault();
+		const input = inputField.value;
+		inputField.value = '';
+		const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: "2-digit" });
+
+		// Add user input to conversation
+		let convMessage = document.createElement('div');
+		convMessage.classList.add('conversation-message');
+		let message = document.createElement('div');
+		message.classList.add('message', 'user-message');
+		message.innerHTML = `<p class="chatbot-text" sentTime="${currentTime}">${input}</p>`;
+		convMessage.appendChild(message);
+		conversation.appendChild(convMessage);
+
+		// Generate chatbot response
+		const response = await fetch('/chat?query='+encodeURIComponent(input), {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ query: input })
+		});
+
+		const data = await response.json();
+
+		// Add chatbot response to conversation
+		let botConvMessage = document.createElement('div');
+		botConvMessage.classList.add('conversation-message');
+		let botMessage = document.createElement('div');
+		botMessage.classList.add('message', 'chatbot-message');
+		botMessage.innerHTML = `<p class="chatbot-text">${parseMarkdown(data.response)}</p>`;
+		botConvMessage.appendChild(botMessage);
+
+		if (data.movies.length > 0) {
+			data.movies.forEach(movie => {
+				const movieItem = document.createElement('div');
+				movieItem.classList.add('movie-item');
+				movieItem.style.display = "flex";
+
+				const truncatedPlot = movie.plot.length > 150 ? 
+            	movie.plot.substring(0, 150) + "..." : 
+            	movie.plot;
+
+				movieItem.innerHTML = `
+					<img src="${movie.thumbnail}" alt="${movie.title}" class="movie-thumbnail" style="width: 100px; height: 150px; margin-right: 15px;">
+					<div class="movie-info">
+						<h4>${movie.title} (${movie.year})</h4>
+						<p><strong>Genre:</strong> ${movie.genre}</p>
+						<p><strong>Actors:</strong> ${movie.actors}</p>
+						<p><strong>Director:</strong> ${movie.director}</p>
+						<p><strong>Writer:</strong> ${movie.writer}</p>
+
+						<div class="movie-description">
+							<p><strong>Description:</strong> 
+								<span class="short-description">${truncatedPlot}</span>
+								<span class="full-description" style="display: none;">${movie.plot}</span>
+								${movie.plot.length > 150 ? 
+									'<span class="show-more"><strong class="show-more-btn" style="cursor: pointer;">Show more</strong></span>' : 
+									''}
+							</p>
+						</div>
+						
+					</div>
+				`;
+				botMessage.appendChild(movieItem);
+
+				// Add click handler for Show more button
+				const showMoreBtn = movieItem.querySelector('.show-more-btn');
+				if (showMoreBtn) {
+					showMoreBtn.addEventListener('click', function() {
+						const descContainer = this.closest('.movie-description');
+						const shortDesc = descContainer.querySelector('.short-description');
+						const fullDesc = descContainer.querySelector('.full-description');
+						
+						if (this.textContent === 'Show more') {
+							shortDesc.style.display = 'none';
+							fullDesc.style.display = 'inline';
+							this.innerHTML = 'Show less'; 
+							this.style.cursor = 'pointer';
+						} else {
+							shortDesc.style.display = 'inline';
+							fullDesc.style.display = 'none';
+							this.textContent = 'Show more';
+							this.style.cursor = 'pointer';
+						}
+					});
+				}
+			});
+		}
+
+		botConvMessage.appendChild(botMessage);
+
+		conversation.appendChild(botConvMessage);
+
+		message.scrollIntoView({behavior: "smooth"});
+		});
+
+	</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Configuration for CRS-DEMO project
+
+model:
+  chat_model: "meta-llama/Llama-3.2-3B-Instruct-Turbo"
+  embed_model: "BAAI/bge-large-en-v1.5"
+
+openai:
+  model_name: "gpt-4o-mini"
+  temperature: 0.7
+  max_tokens: 1024
+
+database:
+  collection_name: "MovieDB_V3"
